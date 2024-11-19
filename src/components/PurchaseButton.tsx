@@ -9,8 +9,8 @@ import {
 } from '@stripe/react-stripe-js';
 import { supabase } from '../lib/supabase';
 
-// Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+// Initialize Stripe with your publishable key
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY ?? '');
 
 const appearance = {
   theme: 'stripe',
