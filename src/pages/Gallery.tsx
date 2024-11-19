@@ -12,65 +12,14 @@ export const Gallery: React.FC = () => {
   React.useEffect(() => {
     async function fetchData() {
       try {
-        // Insert default artist if none exists
-        const { data: existingArtist, error: checkError } = await supabase
+        // Get the first artist
+        const { data: artistData, error: artistError } = await supabase
           .from('artists')
           .select('*')
           .limit(1)
-          .maybeSingle();
+          .single();
 
-        if (checkError) throw checkError;
-
-        let artistData = existingArtist;
-
-        if (!existingArtist) {
-          const { data: newArtist, error: insertError } = await supabase
-            .from('artists')
-            .insert([
-              {
-                name: 'Sarah Mitchell',
-                bio: 'Contemporary artist exploring the intersection of nature and urban life through vibrant, abstract compositions.',
-                avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=400',
-                instagram_url: 'https://instagram.com/sarahmitchellart',
-                twitter_url: 'https://twitter.com/sarahmitchellart',
-                website_url: 'https://sarahmitchellart.com'
-              }
-            ])
-            .select()
-            .single();
-
-          if (insertError) throw insertError;
-          artistData = newArtist;
-
-          // Insert sample artworks for the new artist
-          const { error: artworksError } = await supabase
-            .from('artworks')
-            .insert([
-              {
-                title: 'Urban Jungle',
-                description: 'A vibrant exploration of city life intertwined with natural elements.',
-                image_url: 'https://images.unsplash.com/photo-1549887534-1541e9326642?auto=format&fit=crop&q=80&w=800',
-                price: 1.99,
-                artist_id: artistData.id
-              },
-              {
-                title: 'Neon Dreams',
-                description: 'Abstract interpretation of nightlife through a prism of neon colors.',
-                image_url: 'https://images.unsplash.com/photo-1574169208507-84376144848b?auto=format&fit=crop&q=80&w=800',
-                price: 1.99,
-                artist_id: artistData.id
-              },
-              {
-                title: 'Serenity',
-                description: 'Calming blue tones merge with organic shapes to create a peaceful atmosphere.',
-                image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?auto=format&fit=crop&q=80&w=800',
-                price: 1.99,
-                artist_id: artistData.id
-              }
-            ]);
-
-          if (artworksError) throw artworksError;
-        }
+        if (artistError) throw artistError;
 
         if (artistData) {
           setArtist({
