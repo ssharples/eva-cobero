@@ -63,13 +63,22 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
   return (
     <button
       onClick={handlePurchase}
+      onTouchStart={() => {}} // Add empty touch handler to ensure iOS recognizes it as interactive
       disabled={isLoading}
       className={`
         flex items-center justify-center gap-2 px-4 py-2 
         bg-purple-600 text-white rounded-lg
-        hover:bg-purple-700 transition-colors
+        hover:bg-purple-700 active:bg-purple-800 
+        transition-colors cursor-pointer
         disabled:opacity-50 disabled:cursor-not-allowed
+        touch-manipulation tap-highlight-transparent
+        -webkit-touch-callout-none
       `}
+      style={{
+        WebkitAppearance: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        userSelect: 'none'
+      }}
     >
       <CreditCard className="w-5 h-5" />
       {isLoading ? 'Processing...' : `£${price.toFixed(2)}`}

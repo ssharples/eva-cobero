@@ -5,10 +5,21 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
   
   body {
     @apply antialiased text-gray-900;
+    touch-action: manipulation;
+  }
+
+  /* Improve button interaction on iOS */
+  button {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
   }
 }
 
