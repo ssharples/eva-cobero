@@ -60,17 +60,11 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
                   onError={handlePurchaseError}
                 />
               </div>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-              <h3 className="text-lg font-semibold">{artwork.title}</h3>
-              <p className="mt-1">${artwork.price}</p>
               {error && (
-                <p className="mt-2 text-red-400 text-sm">{error}</p>
+                <p className="mt-2 text-red-400 text-sm text-center">{error}</p>
               )}
             </div>
-          </div>
+          )}
         </div>
       </div>
 

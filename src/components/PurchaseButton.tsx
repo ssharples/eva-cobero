@@ -119,21 +119,23 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
       onTouchEnd={handleTouchEnd}
       onClick={handlePurchase}
       className={`
-        inline-flex items-center justify-center gap-2 px-4 py-3
-        bg-purple-600 text-white rounded-lg
+        inline-flex items-center justify-center gap-2 
+        w-full px-6 py-4 rounded-xl
+        bg-purple-600 text-white text-lg font-medium
         active:bg-purple-800 select-none
         ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         touch-action: manipulation;
+        shadow-lg
       `}
       style={{
         WebkitAppearance: 'none',
         WebkitTapHighlightColor: 'transparent',
         userSelect: 'none',
-        minHeight: '44px',
+        minHeight: '56px',
       }}
       aria-disabled={isLoading}
     >
-      <CreditCard className="w-5 h-5" />
+      <CreditCard className="w-6 h-6" />
       {isLoading ? 'Processing...' : `£${price.toFixed(2)}`}
     </div>
   );
