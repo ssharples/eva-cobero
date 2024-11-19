@@ -21,9 +21,13 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
   const updateArtwork = useArtStore((state) => state.updateArtwork);
 
   const handlePurchaseSuccess = () => {
+    // First, unblur the current artwork
     updateArtwork(artwork.id, { isBlurred: false });
-    // Show lifetime offer after successful single purchase
-    setShowLifetimeOffer(true);
+    
+    // Then show the lifetime access offer
+    setTimeout(() => {
+      setShowLifetimeOffer(true);
+    }, 500); // Small delay to allow the unblur animation to complete
   };
 
   const handlePurchaseError = (error: Error) => {
@@ -47,30 +51,41 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
               artwork.isBlurred ? 'blur-lg scale-110' : ''
             }`}
           />
-          <div 
-            className={`absolute inset-0 flex flex-col items-center justify-center p-4 transition-opacity duration-300 ${
-              artwork.isBlurred ? 'bg-black bg-opacity-40' : 'bg-black bg-opacity-0 group-hover:bg-opacity-30'
-            }`}
-            style={{ touchAction: 'manipulation' }}
-          >
-            {artwork.isBlurred && <Lock className="w-8 h-8 text-white mb-4" />}
-            <div className={`w-full max-w-[200px] ${artwork.isBlurred ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity duration-300'}`}>
-              <PurchaseButton
-                artworkId={artwork.id}
-                price={artwork.price}
-                onSuccess={handlePurchaseSuccess}
-                onError={handlePurchaseError}
-              />
+          {artwork.isBlurred && (
+            <div 
+              className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-40 p-4"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Lock className="w-8 h-8 text-white mb-4" />
+              <div className="w-full max-w-[200px]">
+                <PurchaseButton
+                  artworkId={artwork.id}
+                  price={artwork.price}
+                  onSuccess={handlePurchaseSuccess}
+                  onError={handlePurchaseError}
+                />
+              </div>
+              {error && (
+                <p className="mt-2 text-red-400 text-sm text-center">{error}</p>
+              )}
             </div>
-            {error && (
-              <p className="mt-2 text-red-400 text-sm text-center">{error}</p>
-            )}
-          </div>
+          )}
+        </div>
+        {/* Optional: Show artwork title or other details */}
+        <div className="mt-2 text-sm text-gray-600">
+          {artwork.title}
         </div>
       </div>
 
       {showLifetimeOffer && (
-        <LifetimeAccessOffer onClose={() => setShowLifetimeOffer(false)} />
+        <LifetimeAccessOffer 
+          onClose={() => setShowLifetimeOffer(false)}
+          onSuccess={() => {
+            // Handle successful lifetime purchase
+            // This will be handled by the global state to unblur all images
+            setShowLifetimeOffer(false);
+          }}
+        />
       )}
     </>
   );
