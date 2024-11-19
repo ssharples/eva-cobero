@@ -28,6 +28,7 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
 
   const handlePurchaseError = (error: Error) => {
     setError(error.message);
+    console.error('Purchase error:', error);
   };
 
   return (
@@ -46,25 +47,25 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
               artwork.isBlurred ? 'blur-lg scale-110' : ''
             }`}
           />
-          {artwork.isBlurred && (
-            <div 
-              className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-40 p-4"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <Lock className="w-8 h-8 text-white mb-4" />
-              <div className="w-full max-w-[200px]">
-                <PurchaseButton
-                  artworkId={artwork.id}
-                  price={artwork.price}
-                  onSuccess={handlePurchaseSuccess}
-                  onError={handlePurchaseError}
-                />
-              </div>
-              {error && (
-                <p className="mt-2 text-red-400 text-sm text-center">{error}</p>
-              )}
+          <div 
+            className={`absolute inset-0 flex flex-col items-center justify-center p-4 transition-opacity duration-300 ${
+              artwork.isBlurred ? 'bg-black bg-opacity-40' : 'bg-black bg-opacity-0 group-hover:bg-opacity-30'
+            }`}
+            style={{ touchAction: 'manipulation' }}
+          >
+            {artwork.isBlurred && <Lock className="w-8 h-8 text-white mb-4" />}
+            <div className={`w-full max-w-[200px] ${artwork.isBlurred ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity duration-300'}`}>
+              <PurchaseButton
+                artworkId={artwork.id}
+                price={artwork.price}
+                onSuccess={handlePurchaseSuccess}
+                onError={handlePurchaseError}
+              />
             </div>
-          )}
+            {error && (
+              <p className="mt-2 text-red-400 text-sm text-center">{error}</p>
+            )}
+          </div>
         </div>
       </div>
 

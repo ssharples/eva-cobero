@@ -34,11 +34,32 @@ serve(async (req) => {
     const { artworkId, price, type } = await req.json();
     const origin = req.headers.get('origin') || 'https://www.evacobero.pro';
 
-    console.log('Creating checkout session:', { artworkId, price, type });
+    console.log('Creating payment intent:', { artworkId, price, type });
 
     // Validate input
     if (!artworkId || !price) {
-      throw new Error('Missing required parameters');
+      throw new Error('Missing required parameters: artworkId and price are required');
+    }
+
+    // Always verify the artwork exists first
+    const { data: artwork, error: artworkError } = await supabase
+      .from('artworks')
+      .select('*')
+      .eq('id', artworkId)
+      .single();
+
+    if (artworkError) {
+      console.error('Artwork lookup error:', artworkError);
+      throw new Error('Failed to verify artwork');
+    }
+
+    if (!artwork) {
+      throw new Error(`Artwork not found with ID: ${artworkId}`);
+    }
+
+    // Verify the price matches
+    if (Math.abs(artwork.price - price) > 0.01) {
+      throw new Error('Price mismatch');
     }
 
     let paymentIntent;
@@ -55,6 +76,7 @@ serve(async (req) => {
         },
         metadata: {
           artworkId,
+          title: artwork.title,
         },
       });
 
@@ -105,17 +127,6 @@ serve(async (req) => {
         }
       );
     } else {
-      // Verify the artwork exists
-      const { data: artwork, error: artworkError } = await supabase
-        .from('artworks')
-        .select('*')
-        .eq('id', artworkId)
-        .single();
-
-      if (artworkError || !artwork) {
-        throw new Error('Artwork not found');
-      }
-
       // Create a Checkout Session for redirect flow
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card', 'apple_pay'],
@@ -125,7 +136,7 @@ serve(async (req) => {
               currency: 'gbp',
               product_data: {
                 name: artwork.title,
-                description: artwork.description,
+                description: artwork.description || 'Original artwork',
                 images: [artwork.image_url],
               },
               unit_amount: Math.round(price * 100),
@@ -159,7 +170,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        details: error.stack
+        details: error instanceof Error ? error.stack : 'Unknown error'
       }),
       {
         headers: {
