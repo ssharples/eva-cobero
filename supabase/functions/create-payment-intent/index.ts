@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-import Stripe from 'https://esm.sh/stripe@14.21.0';
+import Stripe from 'https://esm.sh/stripe@11.1.0?target=deno';
+import { corsHeaders } from '../_shared/cors.ts';
 
 // Initialize Stripe
 const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -9,6 +10,7 @@ if (!stripeKey) {
 }
 
 const stripe = new Stripe(stripeKey, {
+  httpClient: Stripe.createFetchHttpClient(),
   apiVersion: '2023-10-16',
 });
 
@@ -21,13 +23,6 @@ if (!supabaseUrl || !supabaseServiceKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // Update this to your domain in production
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -42,14 +37,44 @@ serve(async (req) => {
     console.log('Creating checkout session:', { artworkId, price, type });
 
     // Validate input
-    if (!artworkId || !price || typeof price !== 'number') {
-      throw new Error('Invalid input parameters');
+    if (!artworkId || !price) {
+      throw new Error('Missing required parameters');
     }
 
-    let session;
-    if (type === 'lifetime') {
-      session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
+    let paymentIntent;
+
+    if (type === 'payment_element') {
+      // Create a PaymentIntent for the Payment Element
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(price * 100), // Convert to cents
+        currency: 'gbp',
+        payment_method_types: ['card', 'apple_pay', 'google_pay'],
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: 'never'
+        },
+        metadata: {
+          artworkId,
+        },
+      });
+
+      return new Response(
+        JSON.stringify({ 
+          clientSecret: paymentIntent.client_secret,
+          publishableKey: Deno.env.get('STRIPE_PUBLIC_KEY')
+        }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+          status: 200,
+        }
+      );
+    } else if (type === 'lifetime') {
+      // Create a Checkout Session for redirect flow
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card', 'apple_pay'],
         line_items: [{
           price_data: {
             currency: 'gbp',
@@ -68,6 +93,17 @@ serve(async (req) => {
           type: 'lifetime',
         },
       });
+
+      return new Response(
+        JSON.stringify({ sessionId: session.id }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+          status: 200,
+        }
+      );
     } else {
       // Verify the artwork exists
       const { data: artwork, error: artworkError } = await supabase
@@ -80,20 +116,23 @@ serve(async (req) => {
         throw new Error('Artwork not found');
       }
 
-      session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [{
-          price_data: {
-            currency: 'gbp',
-            product_data: {
-              name: artwork.title,
-              description: artwork.description,
-              images: [artwork.image_url],
+      // Create a Checkout Session for redirect flow
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card', 'apple_pay'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'gbp',
+              product_data: {
+                name: artwork.title,
+                description: artwork.description,
+                images: [artwork.image_url],
+              },
+              unit_amount: Math.round(price * 100),
             },
-            unit_amount: Math.round(price * 100),
+            quantity: 1,
           },
-          quantity: 1,
-        }],
+        ],
         mode: 'payment',
         success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/`,
@@ -102,33 +141,33 @@ serve(async (req) => {
           type: 'single',
         },
       });
+
+      return new Response(
+        JSON.stringify({ sessionId: session.id }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+          status: 200,
+        }
+      );
     }
-
-    console.log('Checkout session created:', session.id);
-
-    return new Response(
-      JSON.stringify({ sessionId: session.id }),
-      {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
-      },
-    );
   } catch (error) {
     console.error('Error:', error);
     
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Internal server error',
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack
       }),
       {
-        status: 400,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
         },
-      },
+        status: 400,
+      }
     );
   }
 });
