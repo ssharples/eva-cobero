@@ -18,8 +18,23 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
   onError,
 }) => {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [stripeError, setStripeError] = React.useState<string | null>(null);
   const navigate = useNavigate();
-  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const buttonRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    // Verify Stripe initialization on mount
+    const checkStripe = async () => {
+      try {
+        const stripe = await stripePromise;
+        console.log('Stripe availability check:', !!stripe);
+      } catch (error) {
+        console.error('Stripe initialization check failed:', error);
+        setStripeError('Payment system unavailable');
+      }
+    };
+    checkStripe();
+  }, []);
 
   const handlePurchase = async (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -27,18 +42,23 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
     
     console.log('Purchase button clicked/tapped');
     
+    if (stripeError) {
+      console.error('Purchase attempted with Stripe error:', stripeError);
+      onError(new Error(stripeError));
+      return;
+    }
+    
     try {
       setIsLoading(true);
-      console.log('Setting loading state...');
+      console.log('Creating payment session...');
       
       const stripe = await stripePromise;
-      console.log('Stripe loaded:', !!stripe);
       
       if (!stripe) {
-        throw new Error('Stripe failed to initialize');
+        throw new Error('Payment system is not available');
       }
 
-      console.log('Creating checkout session...');
+      console.log('Invoking create-payment-intent...');
       const { data, error: checkoutError } = await supabase.functions.invoke('create-payment-intent', {
         body: { 
           artworkId,
@@ -47,10 +67,10 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
         }
       });
 
-      console.log('Checkout session response:', { data, error: checkoutError });
+      console.log('Payment intent response:', { data, error: checkoutError });
 
       if (checkoutError || !data?.sessionId) {
-        throw new Error(checkoutError?.message || 'Failed to create checkout session');
+        throw new Error(checkoutError?.message || 'Failed to create payment session');
       }
 
       console.log('Redirecting to checkout...');
@@ -69,7 +89,7 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
     }
   };
 
-  // Add touch event handlers
+  // Touch event handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     console.log('Touch start event triggered');
     if (buttonRef.current) {
@@ -84,6 +104,12 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
     }
     handlePurchase(e);
   };
+
+  if (stripeError) {
+    return (
+      <div className="text-red-500 text-sm">{stripeError}</div>
+    );
+  }
 
   return (
     <div 
@@ -103,8 +129,9 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
         WebkitAppearance: 'none',
         WebkitTapHighlightColor: 'transparent',
         userSelect: 'none',
-        minHeight: '44px', // iOS minimum touch target size
+        minHeight: '44px',
       }}
+      aria-disabled={isLoading}
     >
       <CreditCard className="w-5 h-5" />
       {isLoading ? 'Processing...' : `£${price.toFixed(2)}`}
