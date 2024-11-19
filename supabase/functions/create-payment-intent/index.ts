@@ -3,9 +3,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import Stripe from 'https://esm.sh/stripe@11.1.0?target=deno';
 import { corsHeaders } from '../_shared/cors.ts';
 
+console.log('Starting Edge Function...');
+
 // Initialize Stripe
 const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
 if (!stripeKey) {
+  console.error('STRIPE_SECRET_KEY is missing');
   throw new Error('STRIPE_SECRET_KEY is required');
 }
 
@@ -19,8 +22,18 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing Supabase environment variables:', { 
+    supabaseUrl: !!supabaseUrl, 
+    supabaseServiceKey: !!supabaseServiceKey,
+    availableEnvVars: Object.keys(Deno.env.toObject())
+  });
   throw new Error('Supabase environment variables are required');
 }
+
+console.log('Initializing Supabase client with:', { 
+  supabaseUrl: supabaseUrl.substring(0, 10) + '...',
+  serviceKeyLength: supabaseServiceKey.length
+});
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -38,7 +51,14 @@ serve(async (req) => {
 
     // Validate input
     if (!artworkId || !price) {
-      throw new Error('Missing required parameters: artworkId and price are required');
+      console.error('Missing required parameters:', { artworkId, price });
+      return new Response(
+        JSON.stringify({ error: 'Missing required parameters: artworkId and price are required' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Always verify the artwork exists first
@@ -50,94 +70,124 @@ serve(async (req) => {
 
     if (artworkError) {
       console.error('Artwork lookup error:', artworkError);
-      throw new Error('Failed to verify artwork');
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify artwork', details: artworkError }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     if (!artwork) {
-      throw new Error(`Artwork not found with ID: ${artworkId}`);
+      console.error('Artwork not found:', artworkId);
+      return new Response(
+        JSON.stringify({ error: `Artwork not found with ID: ${artworkId}` }),
+        { 
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    // Verify the price matches
+    // Verify the price matches (allow for small floating point differences)
     if (Math.abs(artwork.price - price) > 0.01) {
-      throw new Error('Price mismatch');
+      console.error('Price mismatch:', { expected: artwork.price, received: price });
+      return new Response(
+        JSON.stringify({ error: 'Price mismatch', details: { expected: artwork.price, received: price } }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    if (type === 'payment_element') {
-      // Create a PaymentIntent for the Payment Element
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(price * 100), // Convert to cents
-        currency: 'gbp',
-        automatic_payment_methods: {
-          enabled: true,
-        },
-        metadata: {
-          artworkId,
-          title: artwork.title,
-        },
-      });
-
-      return new Response(
-        JSON.stringify({
-          clientSecret: paymentIntent.client_secret,
-          artwork: {
-            id: artwork.id,
+    try {
+      if (type === 'payment_element') {
+        // Create a PaymentIntent for the Payment Element
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: Math.round(price * 100), // Convert to cents
+          currency: 'gbp',
+          automatic_payment_methods: {
+            enabled: true,
+          },
+          metadata: {
+            artworkId,
             title: artwork.title,
-            price: artwork.price,
           },
-        }),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-          },
-          status: 200,
-        }
-      );
-    } else if (type === 'lifetime') {
-      // Create a Checkout Session for lifetime access
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card', 'apple_pay'],
-        line_items: [{
-          price_data: {
-            currency: 'gbp',
-            product_data: {
-              name: 'Lifetime Access',
-              description: 'Unlimited access to all current and future artworks',
-            },
-            unit_amount: 4900, // £49.00
-          },
-          quantity: 1,
-        }],
-        mode: 'payment',
-        success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/`,
-        metadata: {
-          type: 'lifetime',
-        },
-      });
+        });
 
-      return new Response(
-        JSON.stringify({ 
-          sessionId: session.id,
-          checkoutUrl: session.url,
-        }),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
+        return new Response(
+          JSON.stringify({
+            clientSecret: paymentIntent.client_secret,
+            artwork: {
+              id: artwork.id,
+              title: artwork.title,
+              price: artwork.price,
+            },
+          }),
+          {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            },
+            status: 200,
+          }
+        );
+      } else if (type === 'lifetime') {
+        // Create a Checkout Session for lifetime access
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card', 'apple_pay'],
+          line_items: [{
+            price_data: {
+              currency: 'gbp',
+              product_data: {
+                name: 'Lifetime Access',
+                description: 'Unlimited access to all current and future artworks',
+              },
+              unit_amount: 4900, // £49.00
+            },
+            quantity: 1,
+          }],
+          mode: 'payment',
+          success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin}/`,
+          metadata: {
+            type: 'lifetime',
           },
-          status: 200,
+        });
+
+        return new Response(
+          JSON.stringify({ 
+            sessionId: session.id,
+            checkoutUrl: session.url,
+          }),
+          {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            },
+            status: 200,
+          }
+        );
+      }
+
+      throw new Error('Invalid payment type');
+    } catch (stripeError) {
+      console.error('Stripe error:', stripeError);
+      return new Response(
+        JSON.stringify({ error: 'Payment processing failed', details: stripeError }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
-
-    throw new Error('Invalid payment type');
   } catch (error) {
-    console.error('Error:', error);
-    
+    console.error('Edge Function error:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error.message || 'Internal server error',
         details: error instanceof Error ? error.stack : 'Unknown error'
       }),
       {
@@ -145,7 +195,7 @@ serve(async (req) => {
           ...corsHeaders,
           'Content-Type': 'application/json',
         },
-        status: 400,
+        status: 500,
       }
     );
   }

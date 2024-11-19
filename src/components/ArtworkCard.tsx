@@ -49,18 +49,21 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     setError(null);
 
     try {
-      const { error: paymentError } = await stripe.confirmPayment({
+      const { error: paymentError, paymentIntent } = await stripe.confirmPayment({
         elements,
-        confirmParams: {
-          return_url: window.location.origin + '/success',
-        },
+        redirect: 'if_required',
       });
 
       if (paymentError) {
         throw new Error(paymentError.message);
       }
 
-      onSuccess();
+      if (paymentIntent && paymentIntent.status === 'succeeded') {
+        console.log('Payment succeeded:', paymentIntent);
+        onSuccess();
+      } else {
+        throw new Error('Payment failed or was cancelled');
+      }
     } catch (error) {
       console.error('Payment error:', error);
       setError(error instanceof Error ? error.message : 'Payment failed');
@@ -150,6 +153,7 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
     setError(null);
 
     try {
+      console.log('Creating payment intent for artwork:', artwork.id);
       const { data, error: paymentError } = await supabase.functions.invoke(
         'create-payment-intent',
         {
@@ -161,11 +165,14 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
         }
       );
 
+      console.log('Payment intent response:', { data, error: paymentError });
+
       if (paymentError) {
         throw new Error(paymentError.message || 'Failed to create payment');
       }
 
       if (!data?.clientSecret || !data?.artwork) {
+        console.error('Invalid response:', data);
         throw new Error('Invalid response from server');
       }
 
@@ -180,12 +187,26 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
     }
   };
 
-  const handlePaymentSuccess = () => {
-    updateArtwork(artwork.id, { isBlurred: false });
+  const handlePaymentSuccess = async () => {
+    console.log('Payment success, updating artwork:', artwork.id);
+    const artStore = useArtStore.getState();
+    artStore.addPurchasedArtwork(artwork.id);
     setShowPayment(false);
+    
+    // Show success message or feedback
+    setError(null);
+    
+    // Always show lifetime offer after 5 seconds for single purchases
+    const purchasedCount = artStore.purchasedArtworkIds.length;
+    console.log('Total purchased artworks:', purchasedCount);
+    
     setTimeout(() => {
-      setShowLifetimeOffer(true);
-    }, 500);
+      // Only show if user hasn't purchased lifetime access
+      if (!artStore.hasLifetimeAccess) {
+        console.log('Showing lifetime offer popup');
+        setShowLifetimeOffer(true);
+      }
+    }, 5000); // 5 seconds delay
   };
 
   const handlePaymentError = (error: Error) => {
