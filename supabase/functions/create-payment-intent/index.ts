@@ -1,32 +1,54 @@
-import { serve } from 'https://deno.fresh.run/std@0.168.0/http/server.ts';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import Stripe from 'https://esm.sh/stripe@14.21.0';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+// Initialize Stripe
+const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+if (!stripeKey) {
+  throw new Error('STRIPE_SECRET_KEY is required');
+}
+
+const stripe = new Stripe(stripeKey, {
   apiVersion: '2023-10-16',
 });
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+// Initialize Supabase
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Supabase environment variables are required');
+}
+
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*', // Update this to your domain in production
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
+serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const { artworkId, price, type } = await req.json();
-    const origin = req.headers.get('origin') || 'http://localhost:5173';
+    const origin = req.headers.get('origin') || 'https://www.evacobero.pro';
 
+    console.log('Creating checkout session:', { artworkId, price, type });
+
+    // Validate input
+    if (!artworkId || !price || typeof price !== 'number') {
+      throw new Error('Invalid input parameters');
+    }
+
+    let session;
     if (type === 'lifetime') {
-      // Create session for lifetime access
-      const session = await stripe.checkout.sessions.create({
+      session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
           price_data: {
@@ -35,7 +57,7 @@ serve(async (req) => {
               name: 'Lifetime Access',
               description: 'Unlimited access to all artworks',
             },
-            unit_amount: 4900, // £49.00
+            unit_amount: 4900,
           },
           quantity: 1,
         }],
@@ -46,65 +68,67 @@ serve(async (req) => {
           type: 'lifetime',
         },
       });
+    } else {
+      // Verify the artwork exists
+      const { data: artwork, error: artworkError } = await supabase
+        .from('artworks')
+        .select('*')
+        .eq('id', artworkId)
+        .single();
 
-      return new Response(
-        JSON.stringify({ sessionId: session.id }),
-        { 
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
+      if (artworkError || !artwork) {
+        throw new Error('Artwork not found');
+      }
 
-    // Verify the artwork exists
-    const { data: artwork, error: artworkError } = await supabase
-      .from('artworks')
-      .select('*')
-      .eq('id', artworkId)
-      .single();
-
-    if (artworkError || !artwork) {
-      throw new Error('Artwork not found');
-    }
-
-    // Create session for single artwork purchase
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'gbp',
-          product_data: {
-            name: artwork.title,
-            description: artwork.description,
-            images: [artwork.image_url],
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'gbp',
+            product_data: {
+              name: artwork.title,
+              description: artwork.description,
+              images: [artwork.image_url],
+            },
+            unit_amount: Math.round(price * 100),
           },
-          unit_amount: Math.round(price * 100), // Convert to cents/pence
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/`,
+        metadata: {
+          artworkId,
+          type: 'single',
         },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/`,
-      metadata: {
-        artworkId,
-        type: 'single',
-      },
-    });
+      });
+    }
+
+    console.log('Checkout session created:', session.id);
 
     return new Response(
       JSON.stringify({ sessionId: session.id }),
-      { 
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      },
     );
   } catch (error) {
+    console.error('Error:', error);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Internal server error',
+      }),
+      {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      },
     );
   }
 });
