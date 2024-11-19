@@ -62,17 +62,13 @@ serve(async (req) => {
       throw new Error('Price mismatch');
     }
 
-    let paymentIntent;
-
     if (type === 'payment_element') {
       // Create a PaymentIntent for the Payment Element
-      paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(price * 100), // Convert to cents
         currency: 'gbp',
-        payment_method_types: ['card', 'apple_pay', 'google_pay'],
         automatic_payment_methods: {
           enabled: true,
-          allow_redirects: 'never'
         },
         metadata: {
           artworkId,
@@ -81,9 +77,13 @@ serve(async (req) => {
       });
 
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           clientSecret: paymentIntent.client_secret,
-          publishableKey: Deno.env.get('STRIPE_PUBLIC_KEY')
+          artwork: {
+            id: artwork.id,
+            title: artwork.title,
+            price: artwork.price,
+          },
         }),
         {
           headers: {
@@ -94,7 +94,7 @@ serve(async (req) => {
         }
       );
     } else if (type === 'lifetime') {
-      // Create a Checkout Session for redirect flow
+      // Create a Checkout Session for lifetime access
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card', 'apple_pay'],
         line_items: [{
@@ -102,9 +102,9 @@ serve(async (req) => {
             currency: 'gbp',
             product_data: {
               name: 'Lifetime Access',
-              description: 'Unlimited access to all artworks',
+              description: 'Unlimited access to all current and future artworks',
             },
-            unit_amount: 4900,
+            unit_amount: 4900, // £49.00
           },
           quantity: 1,
         }],
@@ -117,44 +117,10 @@ serve(async (req) => {
       });
 
       return new Response(
-        JSON.stringify({ sessionId: session.id }),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-          },
-          status: 200,
-        }
-      );
-    } else {
-      // Create a Checkout Session for redirect flow
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card', 'apple_pay'],
-        line_items: [
-          {
-            price_data: {
-              currency: 'gbp',
-              product_data: {
-                name: artwork.title,
-                description: artwork.description || 'Original artwork',
-                images: [artwork.image_url],
-              },
-              unit_amount: Math.round(price * 100),
-            },
-            quantity: 1,
-          },
-        ],
-        mode: 'payment',
-        success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/`,
-        metadata: {
-          artworkId,
-          type: 'single',
-        },
-      });
-
-      return new Response(
-        JSON.stringify({ sessionId: session.id }),
+        JSON.stringify({ 
+          sessionId: session.id,
+          checkoutUrl: session.url,
+        }),
         {
           headers: {
             ...corsHeaders,
@@ -164,6 +130,8 @@ serve(async (req) => {
         }
       );
     }
+
+    throw new Error('Invalid payment type');
   } catch (error) {
     console.error('Error:', error);
     
