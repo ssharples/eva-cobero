@@ -59,6 +59,7 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
       }
 
       console.log('Invoking create-payment-intent...');
+      console.log('Supabase URL:', supabase.supabaseUrl);
       const { data, error: checkoutError } = await supabase.functions.invoke('create-payment-intent', {
         body: { 
           artworkId,
