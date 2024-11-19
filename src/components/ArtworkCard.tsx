@@ -47,14 +47,19 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
             }`}
           />
           {artwork.isBlurred && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-40 p-4">
+            <div 
+              className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-40 p-4"
+              style={{ touchAction: 'manipulation' }}
+            >
               <Lock className="w-8 h-8 text-white mb-4" />
-              <PurchaseButton
-                artworkId={artwork.id}
-                price={artwork.price}
-                onSuccess={handlePurchaseSuccess}
-                onError={handlePurchaseError}
-              />
+              <div className="w-full max-w-[200px]">
+                <PurchaseButton
+                  artworkId={artwork.id}
+                  price={artwork.price}
+                  onSuccess={handlePurchaseSuccess}
+                  onError={handlePurchaseError}
+                />
+              </div>
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
