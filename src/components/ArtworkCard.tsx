@@ -118,7 +118,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         ) : (
           <>
             <CreditCard className="w-5 h-5" />
-            <span>Pay £{artwork.price.toFixed(2)}</span>
+            <span>Unblur me</span>
           </>
         )}
       </button>
@@ -296,7 +296,7 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
                     ) : (
                       <>
                         <CreditCard className="w-5 h-5" />
-                        <span>Purchase for £{artwork.price.toFixed(2)}</span>
+                        <span>Unblur me</span>
                       </>
                     )}
                   </button>
