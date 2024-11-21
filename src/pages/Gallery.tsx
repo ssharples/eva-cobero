@@ -5,6 +5,9 @@ import { ArtworkGrid } from '../components/ArtworkGrid';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { supabase } from '../lib/supabase';
 
+// Eva's artist ID
+const ARTIST_ID = 'd9037f21-cf78-4e57-a6bd-f9df2c829b3d';
+
 export function Gallery() {
   const { artworks, artist, isLoading, setArtworks, setArtist, setLoading } = useArtStore();
   const [error, setError] = React.useState<string | null>(null);
@@ -14,12 +17,12 @@ export function Gallery() {
       setLoading(true);
       setError(null);
 
-      // Fetch the artist
+      // Fetch the artist using proper filter syntax
       const { data: artistData, error: artistError } = await supabase
         .from('artists')
         .select('*')
-        .eq('id', 'd9037f21-cf78-4e57-a6bd-f9df2c829b3d')
-        .single();
+        .eq('id', ARTIST_ID)
+        .maybeSingle();
 
       if (artistError) {
         console.error('Error fetching artist:', artistError);
@@ -27,13 +30,19 @@ export function Gallery() {
         return;
       }
 
+      if (!artistData) {
+        console.error('No artist found with ID:', ARTIST_ID);
+        setError('Artist not found');
+        return;
+      }
+
       setArtist(artistData);
 
-      // Fetch artworks
+      // Fetch artworks for this artist
       const { data: artworksData, error: artworksError } = await supabase
         .from('artworks')
         .select('*')
-        .eq('artist_id', 'd9037f21-cf78-4e57-a6bd-f9df2c829b3d')
+        .eq('artist_id', ARTIST_ID)
         .order('created_at', { ascending: false });
 
       if (artworksError) {
