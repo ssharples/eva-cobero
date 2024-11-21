@@ -6,64 +6,58 @@ interface ArtistProfileProps {
 }
 
 export function ArtistProfile({ artist }: ArtistProfileProps) {
-  const socialLinks = {
-    instagram: artist.instagram_url || '',
-    twitter: artist.twitter_url || '',
-    website: artist.website_url || ''
-  };
+  const socialLinks = [
+    {
+      url: artist.instagram_url,
+      label: 'Instagram',
+      className: 'bg-gradient-to-r from-purple-500 to-pink-500'
+    },
+    {
+      url: artist.twitter_url,
+      label: 'Twitter',
+      className: 'bg-blue-500'
+    },
+    {
+      url: artist.website_url,
+      label: 'Website',
+      className: 'bg-gray-700'
+    }
+  ].filter(link => link.url);
 
   return (
-    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="md:flex">
-        {artist.image_url && (
-          <div className="md:flex-shrink-0">
-            <img
-              className="h-48 w-full object-cover md:w-48"
-              src={artist.image_url}
-              alt={artist.name}
-            />
-          </div>
-        )}
-        <div className="p-8">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-800">{artist.name}</h2>
-            <div className="flex space-x-4">
-              {socialLinks.instagram && (
-                <a
-                  href={socialLinks.instagram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-pink-600 hover:text-pink-700"
-                >
-                  Instagram
-                </a>
-              )}
-              {socialLinks.twitter && (
-                <a
-                  href={socialLinks.twitter}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-500"
-                >
-                  Twitter
-                </a>
-              )}
-              {socialLinks.website && (
-                <a
-                  href={socialLinks.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-600 hover:text-gray-700"
-                >
-                  Website
-                </a>
-              )}
-            </div>
-          </div>
-          {artist.bio && (
-            <p className="mt-4 text-gray-600">{artist.bio}</p>
-          )}
+    <div className="max-w-2xl mx-auto px-4 py-8 text-center">
+      {artist.image_url && (
+        <div className="mb-8">
+          <img
+            src={artist.image_url}
+            alt={artist.name}
+            className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-white shadow-lg"
+          />
         </div>
+      )}
+      
+      <h1 className="text-3xl font-bold mb-4">{artist.name}</h1>
+      
+      {artist.bio && (
+        <p className="text-gray-600 mb-8 max-w-md mx-auto">
+          {artist.bio}
+        </p>
+      )}
+
+      <div className="flex flex-col space-y-4 max-w-sm mx-auto">
+        {socialLinks.map(link => (
+          <a
+            key={link.label}
+            href={link.url || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${link.className} text-white py-3 px-6 rounded-lg 
+                      font-medium shadow-md hover:opacity-90 transition-opacity
+                      flex items-center justify-center space-x-2`}
+          >
+            <span>{link.label}</span>
+          </a>
+        ))}
       </div>
     </div>
   );

@@ -80,19 +80,21 @@ export function Gallery() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col space-y-8">
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-        
-        <div className="text-center">
-          <h2 className="text-3xl font-bold mb-2">Total Posts: {artworks.length}</h2>
+    <div className="min-h-screen bg-white">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
         </div>
-
-        {artist && <ArtistProfile artist={artist} />}
+      )}
+      
+      {artist && <ArtistProfile artist={artist} />}
+      
+      <div className="container mx-auto px-4">
+        <div className="text-right mb-4">
+          <span className="text-sm text-gray-400">
+            Total posts: {artworks.length}
+          </span>
+        </div>
         <ArtworkGrid artworks={artworks} />
       </div>
     </div>
