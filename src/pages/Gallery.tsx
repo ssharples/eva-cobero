@@ -6,7 +6,7 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { supabase } from '../lib/supabase';
 
 // Eva's artist ID
-const ARTIST_ID = 'd9037f21-cf78-4e57-a6bd-f9df2c829b3d';
+const ARTIST_ID = '26ad1700-852f-43f2-9abe-46e8aa8596e3';
 
 export function Gallery() {
   const { artworks, artist, isLoading, setArtworks, setArtist, setLoading } = useArtStore();
