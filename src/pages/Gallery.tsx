@@ -1,88 +1,91 @@
 import React from 'react';
+import { useArtStore } from '../store/artStore';
 import { ArtistProfile } from '../components/ArtistProfile';
 import { ArtworkGrid } from '../components/ArtworkGrid';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { useArtStore } from '../store/artStore';
 import { supabase } from '../lib/supabase';
 
-export const Gallery: React.FC = () => {
+export function Gallery() {
   const { artworks, artist, isLoading, setArtworks, setArtist, setLoading } = useArtStore();
   const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    async function fetchData() {
-      try {
-        // Get the first artist
-        const { data: artistData, error: artistError } = await supabase
-          .from('artists')
-          .select('*')
-          .limit(1)
-          .single();
+  const fetchData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        if (artistError) throw artistError;
+      // Fetch the artist
+      const { data: artistData, error: artistError } = await supabase
+        .from('artists')
+        .select('*')
+        .eq('id', 'd9037f21-cf78-4e57-a6bd-f9df2c829b3d')
+        .single();
 
-        if (artistData) {
-          setArtist({
-            name: artistData.name,
-            bio: artistData.bio,
-            avatarUrl: artistData.avatar_url,
-            socialLinks: {
-              instagram: artistData.instagram_url,
-              twitter: artistData.twitter_url,
-              website: artistData.website_url,
-            },
-          });
-
-          // Get artworks for this artist
-          const { data: artworksData, error: artworksError } = await supabase
-            .from('artworks')
-            .select('*')
-            .eq('artist_id', artistData.id)
-            .order('created_at', { ascending: false });
-
-          if (artworksError) throw artworksError;
-
-          if (artworksData) {
-            setArtworks(
-              artworksData.map((item) => ({
-                id: item.id,
-                title: item.title,
-                description: item.description,
-                imageUrl: item.image_url,
-                price: item.price,
-                createdAt: item.created_at,
-                isBlurred: true,
-              }))
-            );
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
+      if (artistError) {
+        console.error('Error fetching artist:', artistError);
+        setError('Failed to fetch artist data');
+        return;
       }
-    }
 
-    fetchData();
+      setArtist(artistData);
+
+      // Fetch artworks
+      const { data: artworksData, error: artworksError } = await supabase
+        .from('artworks')
+        .select('*')
+        .eq('artist_id', 'd9037f21-cf78-4e57-a6bd-f9df2c829b3d')
+        .order('created_at', { ascending: false });
+
+      if (artworksError) {
+        console.error('Error fetching artworks:', artworksError);
+        setError('Failed to fetch artwork data');
+        return;
+      }
+
+      if (artworksData) {
+        const processedArtworks = artworksData.map((artwork) => ({
+          id: artwork.id,
+          title: artwork.title,
+          description: artwork.description,
+          imageUrl: artwork.image_url,
+          price: artwork.price,
+          createdAt: artwork.created_at,
+          isBlurred: true,
+        }));
+        setArtworks(processedArtworks);
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   }, [setArtist, setArtworks, setLoading]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-red-500">{error}</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {artist && <ArtistProfile artist={artist} />}
-      <ArtworkGrid artworks={artworks} />
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col space-y-8">
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+        
+        <div className="text-center">
+          <h2 className="text-3xl font-bold mb-2">Total Posts: {artworks.length}</h2>
+        </div>
+
+        {artist && <ArtistProfile artist={artist} />}
+        <ArtworkGrid artworks={artworks} />
+      </div>
     </div>
   );
-};
+}
