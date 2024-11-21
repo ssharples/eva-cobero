@@ -1,67 +1,70 @@
 import React from 'react';
-import { Instagram, Twitter, Globe } from 'lucide-react';
 import { Artist } from '../types';
 
 interface ArtistProfileProps {
   artist: Artist;
 }
 
-export const ArtistProfile: React.FC<ArtistProfileProps> = ({ artist }) => {
-  return (
-    <div className="relative w-full bg-gradient-to-b from-purple-900 to-gray-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <div className="relative">
-          <div className="flex flex-col items-center space-y-6">
-            <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-purple-400 shadow-xl">
-              <img
-                src={artist.avatarUrl}
-                alt={artist.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            
-            <div className="text-center">
-              <h1 className="text-4xl font-bold tracking-tight">{artist.name}</h1>
-              <p className="mt-4 max-w-2xl mx-auto text-lg text-purple-200">
-                {artist.bio}
-              </p>
-            </div>
+export function ArtistProfile({ artist }: ArtistProfileProps) {
+  const socialLinks = {
+    instagram: artist.instagram_url || '',
+    twitter: artist.twitter_url || '',
+    website: artist.website_url || ''
+  };
 
-            <div className="flex space-x-6">
-              {artist.socialLinks.instagram && (
+  return (
+    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="md:flex">
+        {artist.image_url && (
+          <div className="md:flex-shrink-0">
+            <img
+              className="h-48 w-full object-cover md:w-48"
+              src={artist.image_url}
+              alt={artist.name}
+            />
+          </div>
+        )}
+        <div className="p-8">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-800">{artist.name}</h2>
+            <div className="flex space-x-4">
+              {socialLinks.instagram && (
                 <a
-                  href={artist.socialLinks.instagram}
+                  href={socialLinks.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-purple-300 hover:text-white transition-colors"
+                  className="text-pink-600 hover:text-pink-700"
                 >
-                  <Instagram size={24} />
+                  Instagram
                 </a>
               )}
-              {artist.socialLinks.twitter && (
+              {socialLinks.twitter && (
                 <a
-                  href={artist.socialLinks.twitter}
+                  href={socialLinks.twitter}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-purple-300 hover:text-white transition-colors"
+                  className="text-blue-400 hover:text-blue-500"
                 >
-                  <Twitter size={24} />
+                  Twitter
                 </a>
               )}
-              {artist.socialLinks.website && (
+              {socialLinks.website && (
                 <a
-                  href={artist.socialLinks.website}
+                  href={socialLinks.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-purple-300 hover:text-white transition-colors"
+                  className="text-gray-600 hover:text-gray-700"
                 >
-                  <Globe size={24} />
+                  Website
                 </a>
               )}
             </div>
           </div>
+          {artist.bio && (
+            <p className="mt-4 text-gray-600">{artist.bio}</p>
+          )}
         </div>
       </div>
     </div>
   );
-};
+}
