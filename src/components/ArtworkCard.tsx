@@ -1,6 +1,6 @@
 import React from 'react';
 import { useInView } from 'react-intersection-observer';
-import { Lock, CreditCard } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -89,35 +89,27 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       <button
         type="submit"
         disabled={!stripe || isLoading}
-        className="w-full mt-4 bg-black text-white py-3 px-4 rounded-lg hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 px-4 rounded-lg 
+                 font-medium shadow-md hover:opacity-90 transition-opacity flex items-center justify-center space-x-2"
       >
         {isLoading ? (
+          <span>Processing...</span>
+        ) : (
           <>
             <svg
-              className="animate-spin h-5 w-5 text-white"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-5 h-5"
             >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
               <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+              />
             </svg>
-            <span>Processing...</span>
-          </>
-        ) : (
-          <>
-            <CreditCard className="w-5 h-5" />
             <span>Unblur me</span>
           </>
         )}
@@ -267,35 +259,27 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ artwork }) => {
                   <button
                     onClick={handlePurchaseClick}
                     disabled={isLoading}
-                    className="w-full bg-black text-white py-3 px-4 rounded-lg hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 px-4 rounded-lg 
+                             font-medium shadow-md hover:opacity-90 transition-opacity flex items-center justify-center space-x-2"
                   >
                     {isLoading ? (
+                      <span>Processing...</span>
+                    ) : (
                       <>
                         <svg
-                          className="animate-spin h-5 w-5 text-white"
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
+                          strokeWidth={1.5}
+                          stroke="currentColor"
+                          className="w-5 h-5"
                         >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
                           <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                          />
                         </svg>
-                        <span>Processing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-5 h-5" />
                         <span>Unblur me</span>
                       </>
                     )}
