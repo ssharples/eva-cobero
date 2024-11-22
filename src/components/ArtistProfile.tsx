@@ -29,12 +29,13 @@ export function ArtistProfile({ artist }: ArtistProfileProps) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 text-center">
-      {artist.image_url && (
-        <div className="mb-8">
+      {artist.avatar_url && (
+        <div className="mb-6">
           <img
-            src={artist.image_url}
+            src={artist.avatar_url}
             alt={artist.name}
-            className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-white shadow-lg"
+            className="w-32 h-32 rounded-full mx-auto object-cover 
+                     border-4 border-pink-500 shadow-lg"
           />
         </div>
       )}

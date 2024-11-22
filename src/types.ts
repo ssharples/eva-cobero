@@ -2,7 +2,7 @@ export interface Artist {
   id: string;
   name: string;
   bio: string | null;
-  image_url: string | null;
+  avatar_url: string | null;
   instagram_url: string | null;
   twitter_url: string | null;
   website_url: string | null;
