@@ -24,6 +24,9 @@ export function ArtistProfile({ artist }: ArtistProfileProps) {
     }
   ].filter(link => link.url);
 
+  // Split bio text into paragraphs
+  const bioParagraphs = artist.bio?.split('\n').filter(Boolean) || [];
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 text-center">
       {artist.image_url && (
@@ -38,10 +41,12 @@ export function ArtistProfile({ artist }: ArtistProfileProps) {
       
       <h1 className="text-3xl font-bold mb-4">{artist.name}</h1>
       
-      {artist.bio && (
-        <p className="text-gray-600 mb-8 max-w-md mx-auto">
-          {artist.bio}
-        </p>
+      {bioParagraphs.length > 0 && (
+        <div className="text-gray-600 mb-8 max-w-md mx-auto space-y-4">
+          {bioParagraphs.map((paragraph, index) => (
+            <p key={index}>{paragraph}</p>
+          ))}
+        </div>
       )}
 
       <div className="flex flex-col space-y-4 max-w-sm mx-auto">
