@@ -19,86 +19,60 @@ export function Gallery() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const { user, subscription } = useAuth();
 
-  const fetchData = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch the artist using proper filter syntax
-      const { data: artistData, error: artistError } = await supabase
-        .from('artists')
-        .select('*')
-        .eq('id', ARTIST_ID)
-        .maybeSingle();
-
-      if (artistError) {
-        console.error('Error fetching artist:', artistError);
-        setError('Failed to fetch artist data');
-        return;
-      }
-
-      if (!artistData) {
-        console.error('No artist found with ID:', ARTIST_ID);
-        setError('Artist not found');
-        return;
-      }
-
-      setArtist(artistData);
-
-      // Fetch artworks for this artist
-      const { data: artworksData, error: artworksError } = await supabase
-        .from('artworks')
-        .select('*')
-        .eq('artist_id', ARTIST_ID)
-        .order('created_at', { ascending: false });
-
-      if (artworksError) {
-        console.error('Error fetching artworks:', artworksError);
-        setError('Failed to fetch artwork data');
-        return;
-      }
-
-      if (artworksData) {
-        const processedArtworks = artworksData.map((artwork) => ({
-          id: artwork.id,
-          title: artwork.title,
-          description: artwork.description,
-          imageUrl: artwork.image_url,
-          price: artwork.price,
-          createdAt: artwork.created_at,
-          isBlurred: !user || subscription?.status !== 'active',
-        }));
-        setArtworks(processedArtworks);
-      }
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      setError('An unexpected error occurred');
-    } finally {
-      setLoading(false);
-    }
-  }, [setArtist, setArtworks, setLoading, user, subscription]);
-
-  React.useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Show subscription offer after 30 seconds
   useEffect(() => {
-    if (!user && !subscription) {
-      const timer = setTimeout(() => {
-        setShowSubscriptionModal(true);
-      }, 30000);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('*')
+          .eq('id', ARTIST_ID)
+          .single();
 
-      return () => clearTimeout(timer);
-    }
-  }, [user, subscription]);
+        const { data: artworksData } = await supabase
+          .from('artworks')
+          .select('*')
+          .eq('artist_id', ARTIST_ID);
+
+        setArtist(artistData);
+        setArtworks(artworksData);
+      } catch (err) {
+        setError('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [setArtworks, setArtist, setLoading]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
       {/* Background pattern */}
       <div className="fixed inset-0 bg-[url('/noise.png')] opacity-[0.015] pointer-events-none" />
-      
-      <div className="relative container mx-auto px-4 py-8">
+
+      <header className="relative container mx-auto px-4 py-8 flex flex-col items-center text-center">
+        {artist && (
+          <div className="backdrop-blur-lg bg-white/5 rounded-2xl p-6 mb-8 shadow-xl w-full max-w-2xl">
+            <img src={artist.profilePicture} alt={artist.name} className="w-24 h-24 rounded-full mx-auto mb-4" />
+            <h1 className="text-3xl font-bold mb-2">{artist.name}</h1>
+            <p className="text-gray-300 mb-4">{artist.bio}</p>
+            <div className="flex justify-center gap-4">
+              <button className="px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
+                Follow
+              </button>
+              <button
+                onClick={() => setShowSubscriptionModal(true)}
+                className="px-4 py-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Subscribe
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
+
+      <main className="relative container mx-auto px-4 py-8">
         {/* Account Menu */}
         <div className="fixed top-4 right-4 z-50 md:top-6 md:right-6">
           <AccountMenu
@@ -106,13 +80,6 @@ export function Gallery() {
             onShowSubscription={() => setShowSubscriptionModal(true)}
           />
         </div>
-
-        {/* Artist Profile */}
-        {artist && (
-          <div className="backdrop-blur-lg bg-white/5 rounded-2xl p-6 mb-8 shadow-xl">
-            <ArtistProfile artist={artist} />
-          </div>
-        )}
 
         {/* Error Message */}
         {error && (
@@ -134,7 +101,7 @@ export function Gallery() {
             </div>
           )
         )}
-      </div>
+      </main>
 
       {/* Auth Modal */}
       <AuthModal
