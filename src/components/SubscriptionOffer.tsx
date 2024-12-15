@@ -8,6 +8,7 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { supabase } from '../lib/supabase';
+import { X, Sparkles } from 'lucide-react';
 
 const OFFER_END_TIME = new Date('2024-12-15T20:33:45Z'); // 2 hours from current time
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY ?? '');
@@ -83,41 +84,37 @@ function PaymentForm({ clientSecret, onSuccess, onError, onCancel }: PaymentForm
   );
 }
 
-export function SubscriptionOffer() {
-  const { user, subscription } = useAuth();
-  const [timeLeft, setTimeLeft] = useState(getTimeLeft());
+interface SubscriptionOfferProps {
+  show: boolean;
+  onClose: () => void;
+}
+
+export function SubscriptionOffer({ show, onClose }: SubscriptionOfferProps) {
+  const { user, subscription, createSubscription } = useAuth();
+  const [isVisible, setIsVisible] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly' | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  function getTimeLeft() {
-    const now = new Date();
-    const diff = OFFER_END_TIME.getTime() - now.getTime();
-    return Math.max(0, diff);
-  }
-
+  // Handle animation
   useEffect(() => {
-    const timer = setInterval(() => {
-      const remaining = getTimeLeft();
-      setTimeLeft(remaining);
-      
-      if (remaining <= 0) {
-        clearInterval(timer);
-      }
-    }, 1000);
+    if (show) {
+      setIsVisible(true);
+    } else {
+      const timer = setTimeout(() => setIsVisible(false), 300); // Match transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [show]);
 
-    return () => clearInterval(timer);
-  }, []);
-
-  const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-  const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+  if (!show && !isVisible) return null;
 
   const handleSubscribe = async (type: 'monthly' | 'yearly') => {
     if (!user) return;
     
     try {
       setError(null);
+      setIsLoading(true);
       setSelectedPlan(type);
 
       const response = await fetch(
@@ -131,7 +128,7 @@ export function SubscriptionOffer() {
           body: JSON.stringify({
             userId: user.id,
             subscriptionType: type,
-            isDiscounted: timeLeft > 0,
+            isDiscounted: true,
           }),
         }
       );
@@ -147,6 +144,8 @@ export function SubscriptionOffer() {
       console.error('Subscription error:', err);
       setError(err instanceof Error ? err.message : 'Failed to start subscription');
       setSelectedPlan(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -174,11 +173,41 @@ export function SubscriptionOffer() {
 
   if (clientSecret && selectedPlan) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg p-6 max-w-md w-full">
-          <h2 className="text-2xl font-bold mb-4">
-            Complete Your {selectedPlan === 'monthly' ? 'Monthly' : 'Yearly'} Subscription
-          </h2>
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center ${
+          show ? 'opacity-100' : 'opacity-0'
+        } transition-opacity duration-300`}
+        onClick={onClose}
+      >
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+        
+        <div
+          className={`relative w-full max-w-md transform rounded-2xl bg-gray-900/90 backdrop-blur-xl border border-white/10 p-6 shadow-2xl ${
+            show ? 'scale-100' : 'scale-95'
+          } transition-transform duration-300`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Animated background */}
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/20 via-violet-500/20 to-fuchsia-500/20 animate-gradient-xy" />
+
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          <div className="relative text-center mb-8">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent flex items-center justify-center gap-2">
+              <Sparkles className="w-6 h-6 text-yellow-400" />
+              Special Launch Offer!
+            </h2>
+            <p className="text-gray-300 mt-2">
+              Subscribe now and get exclusive access to Eva's premium content
+            </p>
+          </div>
+
           <Elements stripe={stripePromise} options={{ clientSecret }}>
             <PaymentForm
               clientSecret={clientSecret}
@@ -187,77 +216,111 @@ export function SubscriptionOffer() {
               onCancel={handleCancel}
             />
           </Elements>
+
+          <p className="mt-6 text-xs text-gray-500 text-center">
+            Secure payment powered by Stripe. Cancel anytime.
+          </p>
         </div>
       </div>
     );
   }
 
+  // Calculate time remaining for the offer
+  const endTime = new Date('2024-12-15T20:33:45Z');
+  const now = new Date();
+  const timeRemaining = Math.max(0, endTime.getTime() - now.getTime());
+  const hours = Math.floor(timeRemaining / (1000 * 60 * 60));
+  const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+
   return (
-    <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto my-8">
-      <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold mb-2">🎉 Special Offer!</h2>
-        <div className="text-xl mb-4">
-          Limited Time Only: 50% OFF!
-        </div>
-        
-        {timeLeft > 0 ? (
-          <div className="text-2xl font-mono bg-black bg-opacity-20 rounded-lg p-4 inline-block">
-            {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-          </div>
-        ) : (
-          <div className="text-xl font-bold">Offer Expired!</div>
-        )}
-      </div>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 md:p-0 ${
+        show ? 'opacity-100' : 'opacity-0'
+      } transition-opacity duration-300`}
+      onClick={onClose}
+    >
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+      
+      <div
+        className={`relative w-full max-w-md transform rounded-2xl bg-gray-900/90 backdrop-blur-xl border border-white/10 p-6 shadow-2xl ${
+          show ? 'scale-100' : 'scale-95'
+        } transition-transform duration-300`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Animated background */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/20 via-violet-500/20 to-fuchsia-500/20 animate-gradient-xy" />
 
-      {error && (
-        <div className="mb-6 p-3 bg-red-500 bg-opacity-10 border border-red-200 text-white rounded-lg">
-          {error}
-        </div>
-      )}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-6 h-6" />
+        </button>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Monthly Plan */}
-        <div className="bg-white text-gray-800 rounded-lg p-6">
-          <h3 className="text-xl font-bold mb-2">Monthly Access</h3>
-          <div className="mb-4">
-            <span className="line-through text-gray-400">£9.99</span>
-            <span className="text-3xl font-bold ml-2">£4.99</span>
-            <span className="text-gray-600">/month</span>
-          </div>
-          <button
-            onClick={() => handleSubscribe('monthly')}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
-            disabled={timeLeft <= 0 || !user}
-          >
-            {user ? 'Subscribe Monthly' : 'Sign in to Subscribe'}
-          </button>
-        </div>
-
-        {/* Yearly Plan */}
-        <div className="bg-white text-gray-800 rounded-lg p-6">
-          <h3 className="text-xl font-bold mb-2">Yearly Access</h3>
-          <div className="mb-4">
-            <span className="line-through text-gray-400">£99</span>
-            <span className="text-3xl font-bold ml-2">£49</span>
-            <span className="text-gray-600">/year</span>
-          </div>
-          <button
-            onClick={() => handleSubscribe('yearly')}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
-            disabled={timeLeft <= 0 || !user}
-          >
-            {user ? 'Subscribe Yearly' : 'Sign in to Subscribe'}
-          </button>
-        </div>
-      </div>
-
-      {!user && (
-        <div className="text-center mt-6">
-          <p className="text-sm">
-            Please sign in or create an account to access these special offers!
+        <div className="relative text-center mb-8">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent flex items-center justify-center gap-2">
+            <Sparkles className="w-6 h-6 text-yellow-400" />
+            Special Launch Offer!
+          </h2>
+          <p className="text-gray-300 mt-2">
+            Subscribe now and get exclusive access to Eva's premium content
           </p>
+          {timeRemaining > 0 && (
+            <div className="mt-4 inline-block bg-red-500/20 text-red-300 px-4 py-2 rounded-full text-sm font-medium">
+              Offer ends in: {hours}h {minutes}m
+            </div>
+          )}
         </div>
-      )}
+
+        <div className="relative space-y-4">
+          <div className="group relative overflow-hidden rounded-xl bg-white/5 p-4 transition-all hover:bg-white/10">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-violet-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <h3 className="text-lg font-semibold text-white">Monthly Subscription</h3>
+            <p className="text-gray-400 mb-4">Perfect for exploring Eva's art</p>
+            <button
+              onClick={() => handleSubscribe('monthly')}
+              disabled={isLoading}
+              className="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              {isLoading ? 'Processing...' : '£4.99/month'}
+            </button>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-xl bg-white/5 p-4 transition-all hover:bg-white/10">
+            <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute -top-1 -right-1">
+              <div className="relative">
+                <div className="absolute inset-0 animate-spin-slow">
+                  <div className="h-3 w-3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+                </div>
+              </div>
+            </div>
+            <div className="absolute top-2 right-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-xs px-2 py-1 rounded-full">
+              Best Value
+            </div>
+            <h3 className="text-lg font-semibold text-white">Yearly Subscription</h3>
+            <p className="text-gray-400 mb-4">Save 18% with annual billing</p>
+            <button
+              onClick={() => handleSubscribe('yearly')}
+              disabled={isLoading}
+              className="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              {isLoading ? 'Processing...' : '£49/year'}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-4 text-red-400 text-sm text-center bg-red-500/10 rounded-lg py-2">
+            {error}
+          </div>
+        )}
+
+        <p className="relative mt-6 text-xs text-gray-400 text-center">
+          Secure payment powered by Stripe. Cancel anytime.
+        </p>
+      </div>
     </div>
   );
 }

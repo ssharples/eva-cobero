@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useArtStore } from '../store/artStore';
 import { ArtistProfile } from '../components/ArtistProfile';
 import { ArtworkGrid } from '../components/ArtworkGrid';
@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { AuthModal } from '../components/AuthModal';
 import { SubscriptionOffer } from '../components/SubscriptionOffer';
-import { Crown } from 'lucide-react';
+import { AccountMenu } from '../components/AccountMenu';
 
 // Eva's artist ID
 const ARTIST_ID = '26ad1700-852f-43f2-9abe-46e8aa8596e3';
@@ -82,69 +82,77 @@ export function Gallery() {
     fetchData();
   }, [fetchData]);
 
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
+  // Show subscription offer after 30 seconds
+  useEffect(() => {
+    if (!user && !subscription) {
+      const timer = setTimeout(() => {
+        setShowSubscriptionModal(true);
+      }, 30000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [user, subscription]);
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="fixed top-4 right-4 z-50">
-        <button
-          onClick={() => user ? setShowSubscriptionModal(true) : setShowAuthModal(true)}
-          className="p-2 rounded-full bg-primary hover:bg-primary/90 transition-colors"
-          title={user ? 'Manage Subscription' : 'Sign up for Premium'}
-        >
-          <Crown className={`w-6 h-6 ${subscription ? 'text-yellow-400' : 'text-white'}`} />
-        </button>
-      </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      {/* Background pattern */}
+      <div className="fixed inset-0 bg-[url('/noise.png')] opacity-[0.015] pointer-events-none" />
       
-      <div className="flex justify-end p-4">
-        {user ? (
-          <div className="flex items-center gap-4">
-            <span className="text-gray-600">{user.email}</span>
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded"
-            >
-              Sign Out
-            </button>
+      <div className="relative container mx-auto px-4 py-8">
+        {/* Account Menu */}
+        <div className="fixed top-4 right-4 z-50 md:top-6 md:right-6">
+          <AccountMenu
+            onShowAuth={() => setShowAuthModal(true)}
+            onShowSubscription={() => setShowSubscriptionModal(true)}
+          />
+        </div>
+
+        {/* Artist Profile */}
+        {artist && (
+          <div className="backdrop-blur-lg bg-white/5 rounded-2xl p-6 mb-8 shadow-xl">
+            <ArtistProfile artist={artist} />
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="backdrop-blur-lg bg-red-500/10 border border-red-500/20 text-red-200 px-4 py-3 rounded-xl my-4">
+            {error}
+          </div>
+        )}
+
+        {/* Loading Spinner */}
+        {isLoading ? (
+          <div className="flex justify-center items-center min-h-[200px]">
+            <LoadingSpinner />
           </div>
         ) : (
-          <button
-            onClick={() => setShowAuthModal(true)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            Sign In
-          </button>
+          /* Artwork Grid */
+          artworks && (
+            <div className="backdrop-blur-lg bg-white/5 rounded-2xl p-4 md:p-6">
+              <ArtworkGrid artworks={artworks} />
+            </div>
+          )
         )}
       </div>
 
-      {artist && <ArtistProfile artist={artist} />}
-      
-      <SubscriptionOffer />
+      {/* Auth Modal */}
+      <AuthModal
+        show={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => {
+          setShowAuthModal(false);
+          if (showSubscriptionModal) {
+            setShowSubscriptionModal(true);
+          }
+        }}
+      />
 
-      <div className="container mx-auto px-4">
-        <div className="text-right mb-4">
-          <span className="text-sm text-gray-400">
-            Total posts: {artworks.length}
-          </span>
-        </div>
-        <ArtworkGrid artworks={artworks} />
-      </div>
-
-      {showAuthModal && (
-        <AuthModal onClose={() => setShowAuthModal(false)} />
-      )}
-
-      {showSubscriptionModal && (
-        <SubscriptionOffer onClose={() => setShowSubscriptionModal(false)} />
-      )}
+      {/* Subscription Modal */}
+      <SubscriptionOffer
+        show={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+      />
     </div>
   );
 }

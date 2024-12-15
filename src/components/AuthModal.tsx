@@ -1,92 +1,134 @@
 import React, { useState } from 'react';
+import { X } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 
-export function AuthModal({ onClose }: { onClose: () => void }) {
-  const [isLogin, setIsLogin] = useState(true);
+interface AuthModalProps {
+  show: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+export function AuthModal({ show, onClose, onSuccess }: AuthModalProps) {
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    
+    setError(null);
+    setIsLoading(true);
+
     try {
-      if (isLogin) {
-        await signIn(email, password);
+      if (isSignUp) {
+        const { error: signUpError } = await signUp(email, password);
+        if (signUpError) throw signUpError;
       } else {
-        await signUp(email, password);
+        const { error: signInError } = await signIn(email, password);
+        if (signInError) throw signInError;
       }
+      
+      onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Authentication failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-4">
-          {isLogin ? 'Sign In' : 'Create Account'}
-        </h2>
-        
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
+  if (!show) return null;
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-0"
+      onClick={onClose}
+    >
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+      
+      <div
+        className="relative w-full max-w-md transform rounded-2xl bg-gray-900/90 backdrop-blur-xl border border-white/10 p-6 shadow-2xl transition-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
+            {isSignUp ? 'Create Account' : 'Welcome Back'}
+          </h2>
+          <p className="text-gray-400 mt-2">
+            {isSignUp
+              ? 'Sign up to access exclusive content'
+              : 'Sign in to your account'}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-300">
               Email
             </label>
             <input
               type="email"
+              id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              className="mt-1 block w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 text-white placeholder-gray-400 focus:border-blue-400 focus:ring-blue-400/50 focus:ring-2 focus:ring-offset-0 focus:outline-none"
               required
             />
           </div>
 
-          <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-300">
               Password
             </label>
             <input
               type="password"
+              id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+              className="mt-1 block w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 text-white placeholder-gray-400 focus:border-blue-400 focus:ring-blue-400/50 focus:ring-2 focus:ring-offset-0 focus:outline-none"
               required
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            >
-              {isLogin ? 'Sign In' : 'Sign Up'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
-            >
-              {isLogin ? 'Need an account?' : 'Already have an account?'}
-            </button>
-          </div>
+          {error && (
+            <div className="text-red-400 text-sm text-center bg-red-500/10 rounded-lg py-2">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 text-white font-medium transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            {isLoading
+              ? 'Processing...'
+              : isSignUp
+              ? 'Create Account'
+              : 'Sign In'}
+          </button>
         </form>
 
-        <button
-          onClick={onClose}
-          className="mt-4 text-gray-500 hover:text-gray-700"
-        >
-          Close
-        </button>
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            {isSignUp
+              ? 'Already have an account? Sign in'
+              : "Don't have an account? Sign up"}
+          </button>
+        </div>
       </div>
     </div>
   );
