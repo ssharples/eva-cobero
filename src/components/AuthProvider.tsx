@@ -13,32 +13,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
 
   useEffect(() => {
+    console.log('Checking active session...');
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Session:', session);
       setUser(session?.user ?? null);
+      setIsLoading(false);
+    }).catch(error => {
+      console.error('Error fetching session:', error);
       setIsLoading(false);
     });
 
     // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log('Auth state changed:', session);
         setUser(session?.user ?? null);
         setIsLoading(false);
         
         if (session?.user) {
-          // Fetch subscription status
-          const { data: subscriptionData } = await supabase
-            .from('subscriptions')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
+          try {
+            console.log('Fetching subscription for user:', session.user.id);
+            // Fetch subscription status
+            const { data: subscriptionData, error } = await supabase
+              .from('subscriptions')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .single();
 
-          if (subscriptionData) {
-            setSubscription({
-              type: subscriptionData.type,
-              status: subscriptionData.status,
-              expiresAt: subscriptionData.expires_at,
-            });
+            if (error) {
+              console.error('Error fetching subscription:', error);
+            } else {
+              console.log('Subscription data:', subscriptionData);
+              setSubscription({
+                type: subscriptionData.type,
+                status: subscriptionData.status,
+                expiresAt: subscriptionData.expires_at,
+              });
+            }
+          } catch (err) {
+            console.error('Unexpected error fetching subscription:', err);
           }
         }
       }
