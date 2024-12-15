@@ -1,56 +1,111 @@
-import { serve } from 'https://deno.fresh.run/std@0.168.0/http/server.ts';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-import Stripe from 'https://esm.sh/stripe@14.21.0';
+import Stripe from 'https://esm.sh/stripe@11.1.0?target=deno';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+const endpointSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+if (!stripeKey || !endpointSecret || !supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Missing environment variables');
+}
+
+const stripe = new Stripe(stripeKey, {
+  httpClient: Stripe.createFetchHttpClient(),
   apiVersion: '2023-10-16',
 });
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-const endpointSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';
 
 serve(async (req) => {
   const signature = req.headers.get('stripe-signature');
+  if (!signature) {
+    return new Response('No signature', { status: 400 });
+  }
 
   try {
     const body = await req.text();
-    const event = stripe.webhooks.constructEvent(body, signature!, endpointSecret);
+    const event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
+    console.log('Processing webhook event:', event.type);
 
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session;
-      
-      if (session.metadata?.type === 'single' && session.metadata?.artworkId) {
-        // Record single artwork purchase
-        await supabase.from('user_purchases').insert({
-          user_id: session.client_reference_id,
-          artwork_id: session.metadata.artworkId,
-          amount_paid: session.amount_total! / 100,
-          payment_intent_id: session.payment_intent as string,
-          payment_status: 'completed'
-        });
-      } else if (session.metadata?.type === 'lifetime') {
-        // Handle lifetime access purchase
-        // You might want to create a separate table for lifetime access subscriptions
-        await supabase.from('lifetime_access').insert({
-          user_id: session.client_reference_id,
-          purchase_date: new Date().toISOString(),
-          payment_intent_id: session.payment_intent as string,
-          payment_status: 'completed'
-        });
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        if (!paymentIntent.metadata.artworkId) break;
+
+        // Handle one-time artwork purchase
+        const { error } = await supabase
+          .from('purchases')
+          .insert({
+            user_id: paymentIntent.metadata.userId,
+            artwork_id: paymentIntent.metadata.artworkId,
+            amount: paymentIntent.amount,
+            stripe_payment_id: paymentIntent.id,
+          });
+
+        if (error) throw error;
+        break;
+      }
+
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const userId = subscription.metadata.userId;
+        if (!userId) break;
+
+        // Calculate expiration date based on subscription interval
+        const now = new Date();
+        const expiresAt = new Date(now);
+        if (subscription.items.data[0].price.recurring?.interval === 'month') {
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+        } else {
+          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        }
+
+        // Update or insert subscription record
+        const { error } = await supabase
+          .from('subscriptions')
+          .upsert({
+            user_id: userId,
+            stripe_subscription_id: subscription.id,
+            type: subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
+            status: subscription.status === 'active' ? 'active' : 'inactive',
+            expires_at: expiresAt.toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+
+        if (error) throw error;
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const userId = subscription.metadata.userId;
+        if (!userId) break;
+
+        // Mark subscription as inactive
+        const { error } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'inactive',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('stripe_subscription_id', subscription.id);
+
+        if (error) throw error;
+        break;
       }
     }
 
     return new Response(JSON.stringify({ received: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
+
   } catch (err) {
     console.error('Webhook error:', err);
     return new Response(
-      JSON.stringify({ error: `Webhook Error: ${err.message}` }),
+      JSON.stringify({ error: err.message }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
     );
   }
