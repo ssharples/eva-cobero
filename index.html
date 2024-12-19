@@ -4,11 +4,89 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Eva Cobero Art</title>
-    <script src="https://js.stripe.com/v3/"></script>
+    <title>Eva Cobero | Links</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+      .container {
+        max-width: 680px;
+        width: 100%;
+        padding: 20px;
+        text-align: center;
+      }
+      .profile-img {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        margin: 0 auto 15px;
+        display: block;
+        object-fit: cover;
+      }
+      h1 {
+        color: #1a1a1a;
+        margin-bottom: 10px;
+        font-size: 24px;
+      }
+      .bio {
+        color: #666;
+        margin-bottom: 25px;
+        font-size: 16px;
+      }
+      .link-button {
+        display: block;
+        width: 100%;
+        padding: 16px;
+        margin: 12px 0;
+        background: white;
+        border-radius: 12px;
+        color: #1a1a1a;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 16px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .link-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      }
+      .fanvue-button {
+        background: #ff385c;
+        color: white;
+      }
+      .footer {
+        margin-top: 40px;
+        color: #666;
+        font-size: 14px;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div class="container">
+      <img src="/profile-image.jpg" alt="Eva Cobero" class="profile-img">
+      <h1>Eva Cobero</h1>
+      <p class="bio">Artist & Content Creator</p>
+      
+      <a href="https://www.fanvue.com/eva_cobero/fv-1" class="link-button fanvue-button">
+        Find me on Fanvue
+      </a>
+      
+      <div class="footer">
+        2024 Eva Cobero
+      </div>
+    </div>
   </body>
 </html>
