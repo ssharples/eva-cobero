@@ -43,7 +43,7 @@ export function Gallery() {
       <div className="max-w-md w-full">
         <div className="text-center">
           <img
-            src={artist.profilePicture}
+            src={artist.avatar_url}
             alt={artist.name}
             className="w-24 h-24 rounded-full mx-auto mb-4 border-2 border-white shadow-lg object-cover"
           />
@@ -57,7 +57,7 @@ export function Gallery() {
             rel="noopener noreferrer"
             className="block w-full bg-[#ff385c] text-white rounded-xl py-4 px-6 mb-4 font-medium hover:bg-[#ff2d54] transition-all duration-200 transform hover:-translate-y-1 hover:shadow-lg"
           >
-            Find me on Fanvue
+            Watch me play with myself 😈
           </a>
 
           {error && (
